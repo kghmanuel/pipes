@@ -53,7 +53,7 @@ public class BackendModulesAppRunner implements ApplicationRunner {
     // if command line param "teardown" has been specified and it's true,
     // the app will delete backend modules and terminate
     if (undeployBackend) {
-      backendModulesManager.unloadPipesModules();
+      backendModulesManager.unloadPipesModules("*/pipes/*.sjs", clientConfig);
 
       logger.info(
         String.format("Shutting down Pipes...")

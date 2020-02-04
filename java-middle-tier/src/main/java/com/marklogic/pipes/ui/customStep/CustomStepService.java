@@ -8,7 +8,6 @@ import com.marklogic.hub.error.DataHubProjectException;
 import com.marklogic.hub.impl.StepDefinitionManagerImpl;
 import com.marklogic.hub.step.StepDefinition;
 import com.marklogic.hub.util.json.JSONObject;
-import com.marklogic.pipes.ui.BackendModules.BackendModulesAppRunner;
 import com.marklogic.pipes.ui.BackendModules.BackendModulesManager;
 import com.marklogic.pipes.ui.config.ClientConfig;
 import org.slf4j.Logger;
@@ -127,7 +126,7 @@ public class CustomStepService {
     logger.info(
       String.format("Now loading custom step "+ customStepName +" to your DHF modules database...")
     );
-    backendModulesManager.deployMlBackendModulesToModulesDatabase(".*/"+customStepName+"/.*.sjs");
+    backendModulesManager.deployMlBackendModulesToModulesDatabase(".*/"+customStepName+"/.*.sjs", clientConfig);
     logger.info(
       String.format("Custom step has been loaded."));
 

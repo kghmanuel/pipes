@@ -119,7 +119,7 @@ public class BackendModulesManager {
     final String CUSTOMSJSNAME="user.sjs";
     final String CUSTOMSJSPATH=config.getCustomModulesRoot()+File.separator+CUSTOMSJSNAME;
 
-    Boolean includeCustomUserModule = checkIfIncludeCustomModules(config, CUSTOMSJSPATH);
+
 
 
     for (final String filePath : filePaths) {
@@ -128,6 +128,8 @@ public class BackendModulesManager {
 
       operation.execute(is, dest);
     }
+
+    Boolean includeCustomUserModule = checkIfIncludeCustomModules(config, CUSTOMSJSPATH);
 
     // do the same for the custom user module
     if (includeCustomUserModule) {
@@ -140,7 +142,7 @@ public class BackendModulesManager {
 
   }
 
-  private Boolean checkIfIncludeCustomModules(ClientConfig config, String CUSTOMSJSPATH) {
+  public Boolean checkIfIncludeCustomModules(ClientConfig config, String CUSTOMSJSPATH) {
     Boolean includeCustomUserModule=false;
 
     if(config.getCustomModulesRoot()!=null) {

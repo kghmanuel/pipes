@@ -6,7 +6,7 @@ const lib = require('/data-hub/5/builtins/steps/mapping/default/lib.sjs');
 const  lib2 = require("/custom-modules/pipes/entity-services-lib-vpp.sjs")
 const PNF = require('/custom-modules/pipes/google-libphonenumber.sjs').PhoneNumberFormat;
 const phoneUtil = require('/custom-modules/pipes/google-libphonenumber.sjs').PhoneNumberUtil.getInstance();
-
+const BLOCK_RUNTIME_DEBUG_TRACE = "pipesBlockRuntimeDebug";
 
 function init(LiteGraph){
 
@@ -2748,13 +2748,41 @@ function init(LiteGraph){
 
 
   }
+
   LiteGraph.registerNodeType("controls/CheckPhoneNumber", checkPhoneNumber );
 
 
+  function xpathBlock()
+  {
+    this.addInput("node");
+    this.addOutput("nodes");
+    this.xpath = this.addWidget("text","xpath", "", function(v){}, {} );
+    this.namespaces=this.addWidget("text","namespaces", "", function(v){}, {} );
+  }
 
+  xpathBlock.title = "xpath";
+  xpathBlock.desc = "xpath";
 
-
-
+  xpathBlock.prototype.onExecute = function()
+  {
+    let input = this.getInputData(0);
+    // it seems that a source entry is outputing an array
+    input = input[0];
+    let ns = {};
+    const nstokens = this.namespaces.value.trim().split(",");
+    if ( nstokens.length % 2 === 0 ) {
+      for ( let i = 0 ; i < nstokens.length ; i+=2 ) {
+        ns[nstokens[i].trim()] = nstokens[i+1].trim();
+      }
+    }
+    const xpath = this.xpath.value;
+    xdmp.trace(BLOCK_RUNTIME_DEBUG_TRACE,Sequence.from(["Xpath: Input",input,"NS",ns]));
+    //xdmp.log(Sequence.from(["Namespaces",ns,"Xpath",xpath]))
+    const output = input.xpath(xpath,ns);
+    xdmp.trace(BLOCK_RUNTIME_DEBUG_TRACE,Sequence.from(["Xpath: Output",output]));
+    this.setOutputData(0, output )
+  }
+  LiteGraph.registerNodeType("transform/xpath", xpathBlock );
 
 }
 

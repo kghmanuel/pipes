@@ -12,6 +12,8 @@ import com.marklogic.mgmt.ManageClient;
 import com.marklogic.mgmt.ManageConfig;
 import com.marklogic.mgmt.admin.AdminConfig;
 import com.marklogic.mgmt.admin.AdminManager;
+import com.marklogic.pipes.ui.BackendModules.operations.Copy;
+import com.marklogic.pipes.ui.BackendModules.operations.Delete;
 import com.marklogic.pipes.ui.BackendModules.operations.ModuleOperation;
 import com.marklogic.pipes.ui.config.ClientConfig;
 import com.marklogic.pipes.ui.Application;
@@ -21,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -32,24 +35,28 @@ import java.util.regex.Pattern;
 public class BackendModulesManager {
   private static final Logger logger = LoggerFactory.getLogger(BackendModulesManager.class);
 
-//  @Autowired
-//  ClientConfig clientConfig;
-
   final String resourcesDhfRoot = "/dhf/src/main/ml-modules";
   final String destinationDhfRoot = "/src/main/ml-modules";
   final String customModulesPathPrefix = "/root/custom-modules/pipes";
 
-  private enum fileOperation {
-    Copy,
-    Remove
-  }
+  ArrayList<String> filePaths = new ArrayList<String>(
+    Arrays.asList(
+      customModulesPathPrefix+"/core.sjs",
+      customModulesPathPrefix+"/entity-services-lib-vpp.sjs",
+      customModulesPathPrefix+"/google-libphonenumber.sjs",
+      customModulesPathPrefix+"/graphHelper.sjs",
+      customModulesPathPrefix+"/litegraph.sjs",
+      customModulesPathPrefix+"/moment-with-locales.min.sjs",
+      "/services/vppBackendServices.sjs"
+    ));
 
   public void copyAndDeployPipesBackend(ClientConfig config) throws Exception {
+
 
     logger.info(
       String.format("Will copy MarkLogic backend modules to following DHF root: %s", config.getMlDhfRoot()));
     try {
-      manageMarkLogicBackendModules(fileOperation.Copy, config);
+      manageMarkLogicBackendModules(new Copy(), config, filePaths);
     }
     catch (Exception e) {
       logger.error(
@@ -84,20 +91,30 @@ public class BackendModulesManager {
 
   }
 
-  private void manageMarkLogicBackendModules(ModuleOperation operation, ClientConfig config) throws Exception {
+  public void unloadPipesModules(String pattern, ClientConfig config) throws Exception {
+
+    // unload Pipes backend modules
+    removeModulesFromDb(pattern, config);
+
+    // unload Pipes rest extension
+    removeRestExtension(config);
+
+    // delete Pipes modules from DHF project
+    manageMarkLogicBackendModules(new Delete(), config, filePaths);
+
+    // also delete the Pipes folder from DHF project
+    deleteDhfPipesDir(config);
 
 
-    ArrayList<String> filePaths = new ArrayList<String>(
-      Arrays.asList(
-        customModulesPathPrefix+"/core.sjs",
-        customModulesPathPrefix+"/entity-services-lib-vpp.sjs",
-        customModulesPathPrefix+"/google-libphonenumber.sjs",
-        customModulesPathPrefix+"/graphHelper.sjs",
-        customModulesPathPrefix+"/litegraph.sjs",
-        customModulesPathPrefix+"/moment-with-locales.min.sjs",
-//        customModulesPathPrefix+"/user.sjs",
-        "/services/vppBackendServices.sjs"
-      ));
+    logger.info(
+      String.format("Pipes deleted.")
+    );
+
+
+  }
+
+
+  private void manageMarkLogicBackendModules(ModuleOperation operation, ClientConfig config,  ArrayList<String> filePaths) throws Exception {
 
     final String CUSTOMSJSNAME="user.sjs";
     final String CUSTOMSJSPATH=config.getCustomModulesRoot()+File.separator+CUSTOMSJSNAME;
@@ -114,24 +131,11 @@ public class BackendModulesManager {
 
     // do the same for the custom user module
     if (includeCustomUserModule) {
-      //final InputStream is = Application.class.getResourceAsStream(resourcesDhfRoot + filePath);
-      final File source = new File(CUSTOMSJSPATH);
+
+      //final File source = new File(CUSTOMSJSPATH);
+      final InputStream is = new FileInputStream(CUSTOMSJSPATH);
       final File dest = new File(config.getMlDhfRoot() + destinationDhfRoot + customModulesPathPrefix + File.separator +CUSTOMSJSNAME);
-      operation.execute(source,dest);
-    }
-
-    // also delete the pipes folder
-    if (operation== fileOperation.Remove) {
-      String folderPath=config.getMlDhfRoot() + destinationDhfRoot + customModulesPathPrefix;
-      FileUtils.deleteDirectory(new File(folderPath));
-
-      logger.info(
-        String.format("Deleted folder "+folderPath));
-    }
-
-    else if (operation== fileOperation.Copy) {
-      logger.info(
-        String.format("MarkLogic backend modules copied to your DHF project."));
+      operation.execute(is,dest);
     }
 
   }
@@ -155,7 +159,6 @@ public class BackendModulesManager {
   }
 
   public void deployMlBackendModulesToModulesDatabase(String patternString, ClientConfig config) {
-    // ".*/pipes/.*.sjs|.*vppBackendServices.sjs"
     Pattern pattern=Pattern.compile(patternString);
 
     ManageClient client = getManageClient(config);
@@ -171,8 +174,6 @@ public class BackendModulesManager {
     appConfig.setModuleFilenamesIncludePattern(pattern);
     // Call it
     appDeployer.deploy(appConfig);
-
-
 
   }
 
@@ -196,27 +197,17 @@ public class BackendModulesManager {
     return new ManageClient(new ManageConfig(config.getMlHost(), config.getMlManagePort(), config.getMlUsername(), config.getMlPassword()));
   }
 
-  public void unloadPipesModules(String pattern, ClientConfig config) throws Exception {
+
+
+  private void deleteDhfPipesDir(ClientConfig config) throws IOException {
+    String folderPath = config.getMlDhfRoot() + destinationDhfRoot + customModulesPathPrefix;
+    FileUtils.deleteDirectory(new File(folderPath));
 
     logger.info(
-      String.format("Now deleting Pipes modules from your DHF modules database...")
-    );
+      String.format("Deleted folder " + folderPath));
+  }
 
-    ManageClient client = getManageClient(config);
-    AdminManager manager = getAdminManager(config);
-    AppConfig appConfig = getAppConfig(config);
-
-    // will use the DeleteModulesCommand
-    AppDeployer appDeployer = new SimpleAppDeployer(client, manager, new DeleteModulesCommand(pattern));
-
-    // Setting batch size just to verify that nothing blows up when doing so
-    appConfig.setModulesLoaderBatchSize(1);
-
-    appDeployer.deploy(appConfig);
-
-    logger.info(
-      String.format("MarkLogic backend modules have been deleted."));
-
+  private void removeRestExtension(ClientConfig config) {
     logger.info(
       String.format("Now deleting Pipes REST extension from your DHF modules database...")
     );
@@ -232,14 +223,26 @@ public class BackendModulesManager {
     logger.info(
       String.format("Deleted Pipes REST extension from your DHF modules database...")
     );
+  }
 
-    manageMarkLogicBackendModules(fileOperation.Remove, config);
-
+  private void removeModulesFromDb(String pattern, ClientConfig config) {
     logger.info(
-      String.format("Pipes deleted.")
+      String.format("Now deleting Pipes modules from your DHF modules database...")
     );
 
+    ManageClient client = getManageClient(config);
+    AdminManager manager = getAdminManager(config);
+    AppConfig appConfig = getAppConfig(config);
 
+    // will use the DeleteModulesCommand
+    AppDeployer appDeployer = new SimpleAppDeployer(client, manager, new DeleteModulesCommand(pattern));
+
+    // Setting batch size just to verify that nothing blows up when doing so
+    appConfig.setModulesLoaderBatchSize(1);
+    appDeployer.deploy(appConfig);
+
+    logger.info(
+      String.format("MarkLogic backend modules have been deleted."));
   }
 
   private DatabaseClient getDbClient(ClientConfig config) {

@@ -65,7 +65,7 @@ public class BackendModulesAppRunner implements ApplicationRunner {
     }
 
     if (deployBackend) {
-      backendModulesManager.copyAndDeployPipesBackend();
+      backendModulesManager.copyAndDeployPipesBackend(clientConfig);
     }
 
     logger.info(

@@ -7,6 +7,6 @@ public class Delete implements ModuleOperation {
   @Override
   public void execute(InputStream is, File dest) {
     dest.delete();
-
+    logger.info("Deleted "+dest.getAbsolutePath());
   }
 }

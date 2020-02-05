@@ -11,12 +11,11 @@ import java.io.InputStream;
 
 public class Copy implements ModuleOperation {
 
-  private static final Logger logger = LoggerFactory.getLogger(BackendModulesManager.class);
-
   @Override
   public void execute(InputStream is, File dest) {
     try {
       FileUtils.copyInputStreamToFile(is, dest);
+      logger.info("Copied "+is.toString()+" to "+dest.getAbsolutePath());
     } catch (IOException e) {
       logger.error("Tried to copy "+is.toString()+" to "+dest.getAbsolutePath()+" and failed.",e);
       e.printStackTrace();
